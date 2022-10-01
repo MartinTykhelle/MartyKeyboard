@@ -22,28 +22,19 @@ void MartyKeyboard::poll()
 {
   
   _currentState = (_mcp.readGPIOB() << 8) | _mcp.readGPIOA();
-  /*if (_currentState != _previousState){
-    _mcp.digitalWrite(12,HIGH);
-
-    delay(50);
-        _mcp.digitalWrite(12, LOW);
-    delay(50);
-  }*/
 
   uint16_t added =   ~_currentState &  _previousState;
   uint16_t removed =  _currentState & ~_previousState;
 
+  _latestNote = -1;
   for (int i = 0; i <16; i++) {
-        /*
-       added is like 1010
-       ~added is  0101
-       ~added>>1 is 0010 (shifted once)
-       and ~added>>1&1 ands 0010 and 0001 to check if the last bit is 1
-    */
     uint8_t note = i + _octave * 12;
+
+
 
     if (added >> i & 1 == 1) {
       _noteOn(0, note, 64);
+      _latestNote = note;
     }
 
     if (removed >> i & 1 == 1) {
@@ -79,4 +70,8 @@ void MartyKeyboard::_noteOff(byte channel, byte pitch, byte velocity) {
 void MartyKeyboard::_allNotesOff(){
  midiEventPacket_t noteOff = {0x0B, 0xB0, 0x7B, 0x00};
   MidiUSB.sendMIDI(noteOff);
+}
+
+uint8_t MartyKeyboard::getLatestNote(){
+  return _latestNote;
 }
