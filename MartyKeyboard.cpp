@@ -1,10 +1,11 @@
 #include "MartyKeyboard.h"
 
 
-MartyKeyboard::MartyKeyboard(uint8_t i2c_addr)
+MartyKeyboard::MartyKeyboard(uint8_t i2c_addr
+                            ,uint8_t octave)
 {
   _mcp.begin_I2C(i2c_addr);
-
+  _octave = octave;
   //Define pins 0 to 11 (key pins) as pullup
   for (int i = 0; i < 12; i++) {
     _mcp.pinMode(i, INPUT_PULLUP);
@@ -20,17 +21,62 @@ MartyKeyboard::MartyKeyboard(uint8_t i2c_addr)
 void MartyKeyboard::poll()
 {
   
-  uint16_t  _currentState = (_mcp.readGPIOB() << 8) | _mcp.readGPIOA();
-  if (_currentState != _previousState){
+  _currentState = (_mcp.readGPIOB() << 8) | _mcp.readGPIOA();
+  /*if (_currentState != _previousState){
     _mcp.digitalWrite(12,HIGH);
 
     delay(50);
         _mcp.digitalWrite(12, LOW);
     delay(50);
+  }*/
+
+  uint16_t added =   ~_currentState &  _previousState;
+  uint16_t removed =  _currentState & ~_previousState;
+
+  for (int i = 0; i <16; i++) {
+        /*
+       added is like 1010
+       ~added is  0101
+       ~added>>1 is 0010 (shifted once)
+       and ~added>>1&1 ands 0010 and 0001 to check if the last bit is 1
+    */
+    uint8_t note = i + _octave * 12;
+
+    if (added >> i & 1 == 1) {
+      _noteOn(0, note, 64);
+    }
+
+    if (removed >> i & 1 == 1) {
+      _noteOff(0, note, 64);
+    }
+
   }
 
-  Serial.println(_currentState,BIN);
-  Serial.println(_previousState,BIN);
-  delay(1000);
+
+
+
   _previousState = _currentState;
+}
+
+
+
+void MartyKeyboard::_noteOn(byte channel, byte pitch, byte velocity) {
+  //1st parameter = code? 1001 or 0x09 like a mask for the second parameter
+  //2nd parameter = channel voice message, 1001nnnnn or 0x90 | nnnn means note on on nnnn channel
+  //3rd parameter = pitch or note number
+  //4th parameter = velocity
+  midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};
+
+  MidiUSB.sendMIDI(noteOn);
+}
+
+void MartyKeyboard::_noteOff(byte channel, byte pitch, byte velocity) {
+
+  midiEventPacket_t noteOff = {0x08, 0x80 | channel, pitch, velocity};
+
+  MidiUSB.sendMIDI(noteOff);
+}
+void MartyKeyboard::_allNotesOff(){
+ midiEventPacket_t noteOff = {0x0B, 0xB0, 0x7B, 0x00};
+  MidiUSB.sendMIDI(noteOff);
 }

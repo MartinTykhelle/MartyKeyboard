@@ -9,12 +9,17 @@
 class MartyKeyboard
 {
   public:
-    MartyKeyboard(uint8_t i2c_addr);
+    MartyKeyboard(uint8_t i2c_addr, uint8_t octave);
     void poll();
   private:
     Adafruit_MCP23X17 _mcp;
-    uint8_t _currentState;
-    uint8_t _previousState;
+    uint16_t _currentState;
+    uint16_t _previousState;
+    uint8_t _octave;
+    void _translateToMidi(uint16_t mcpData, uint16_t prevMcpData);
+    void _noteOn(byte channel, byte pitch, byte velocity);
+    void _noteOff(byte channel, byte pitch, byte velocity);
+    void _allNotesOff();
 };
 
 #endif
