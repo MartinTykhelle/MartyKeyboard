@@ -2,7 +2,7 @@
 
 
 MartyKeyboard::MartyKeyboard(uint8_t i2c_addr
-                            ,uint8_t octave)
+                             , uint8_t octave)
 {
   _mcp.begin_I2C(i2c_addr);
   _octave = octave;
@@ -10,24 +10,29 @@ MartyKeyboard::MartyKeyboard(uint8_t i2c_addr
   for (int i = 0; i < 12; i++) {
     _mcp.pinMode(i, INPUT_PULLUP);
   }
-  //define pins 12-15 (led pins) as output 
+  //define pins 12-15 (led pins) as output
   for (int i = 12; i < 16; i++) {
     _mcp.pinMode(i, OUTPUT);
   }
+  //mode vars
+  _discoCount = 0;
+
+  //modes
+  _discoEnabled = false;
 
 
 }
 
 void MartyKeyboard::poll()
 {
-  
+
   _currentState = (_mcp.readGPIOB() << 8) | _mcp.readGPIOA();
 
   uint16_t added =   ~_currentState &  _previousState;
   uint16_t removed =  _currentState & ~_previousState;
 
   _latestNote = -1;
-  for (int i = 0; i <16; i++) {
+  for (int i = 0; i < 12; i++) {
     uint8_t note = i + _octave * 12;
 
 
@@ -45,10 +50,23 @@ void MartyKeyboard::poll()
 
 
 
+  if (_discoEnabled) {
+    _printBinLED(_discoCount);
+  }
+  else {
+    _printBinLED(0);
+  }
 
   _previousState = _currentState;
 }
 
+void MartyKeyboard::setMode(Mode mode
+                            , bool enabled) {
+  if (mode == Mode::DISCO && _discoEnabled != enabled) {
+    _discoEnabled = enabled;
+  }
+
+}
 
 
 void MartyKeyboard::_noteOn(byte channel, byte pitch, byte velocity) {
@@ -58,6 +76,7 @@ void MartyKeyboard::_noteOn(byte channel, byte pitch, byte velocity) {
   //4th parameter = velocity
   midiEventPacket_t noteOn = {0x09, 0x90 | channel, pitch, velocity};
 
+  _discoCount++;
   MidiUSB.sendMIDI(noteOn);
 }
 
@@ -67,11 +86,18 @@ void MartyKeyboard::_noteOff(byte channel, byte pitch, byte velocity) {
 
   MidiUSB.sendMIDI(noteOff);
 }
-void MartyKeyboard::_allNotesOff(){
- midiEventPacket_t noteOff = {0x0B, 0xB0, 0x7B, 0x00};
+void MartyKeyboard::_allNotesOff() {
+  midiEventPacket_t noteOff = {0x0B, 0xB0, 0x7B, 0x00};
   MidiUSB.sendMIDI(noteOff);
 }
 
-uint8_t MartyKeyboard::getLatestNote(){
+void MartyKeyboard::_printBinLED(uint8_t data) {
+  _mcp.digitalWrite(12, (bool)(data & 1));
+  _mcp.digitalWrite(13, (bool)(data & 2));
+  _mcp.digitalWrite(14, (bool)(data & 4));
+  _mcp.digitalWrite(15, (bool)(data & 8));
+}
+
+uint8_t MartyKeyboard::getLatestNote() {
   return _latestNote;
 }
