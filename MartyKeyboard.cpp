@@ -40,10 +40,23 @@ void MartyKeyboard::poll()
     if (added >> i & 1 == 1) {
       _noteOn(0, note, 64);
       _latestNote = note;
+
+      for (uint8_t j = 0; j < sizeof(_chord); j++) {
+        if (_chord[j] != 0) {
+          _noteOn(0, note + _chord[j], 64);
+        }
+      }
     }
 
     if (removed >> i & 1 == 1) {
       _noteOff(0, note, 64);
+
+      for (uint8_t j = 0; j < sizeof(_chord); j++) {
+        if (_chord[j] != 0) {
+          _noteOff(0, note + _chord[j], 64);
+        }
+      }
+
     }
 
   }
@@ -68,6 +81,18 @@ void MartyKeyboard::setMode(Mode mode
 
 }
 
+void MartyKeyboard::setChord(uint8_t chord[]) {
+
+  for (uint8_t i = 0; i < sizeof(_chord); i++) {
+    _chord[i] = 0;
+  }
+
+  for (uint8_t i = 0; i < sizeof(chord); i++) {
+    _chord[i] = chord[i];
+  }
+
+
+}
 
 void MartyKeyboard::_noteOn(byte channel, byte pitch, byte velocity) {
   //1st parameter = code? 1001 or 0x09 like a mask for the second parameter
